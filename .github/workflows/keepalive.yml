@@ -34,8 +34,14 @@ jobs:
             exit 1
           fi
 
-          URL="https://${{ matrix.project.ref }}.supabase.co/rest/v1/?apikey=$KEY"
-          STATUS=$(curl -sS -o /tmp/body.txt -w "%{http_code}" --max-time 30 "$URL" || echo "000")
+          # 用 /auth/v1/health（GoTrue health endpoint）：
+          #   - 加 apikey header 才會回 200（不加會 401）
+          #   - 不需要知道專案 schema，比打 /rest/v1/<table> 通用
+          #   - 任何 HTTP 請求都計入 Supabase 活動，不會被自動暫停
+          URL="https://${{ matrix.project.ref }}.supabase.co/auth/v1/health"
+          STATUS=$(curl -sS -o /tmp/body.txt -w "%{http_code}" --max-time 30 \
+            -H "apikey: $KEY" \
+            "$URL" || echo "000")
 
           echo "📡 ${{ matrix.project.name }} (${{ matrix.project.ref }}) → HTTP $STATUS"
 
