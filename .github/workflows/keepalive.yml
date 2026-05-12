@@ -2,10 +2,11 @@ name: Supabase Keepalive
 
 on:
   schedule:
-    # 每 3 天 UTC 03:00（台灣時間 11:00）跑一次
-    # Supabase 免費版 7 天沒活動會自動暫停，但實測約 5 天就會寄
-    # 「即將暫停」警告信，所以從每 5 天縮短為每 3 天避開警告線
-    - cron: '0 3 */3 * *'
+    # 每 2 天 UTC 03:00（台灣時間 11:00）跑一次
+    # Supabase 免費版 7 天沒活動會自動暫停。`/auth/v1/health` 不算
+    # 「活動」（實測 2026-05-07 ping 200 OK，5-10 還是被暫停），
+    # 所以改打 PostgREST 表查詢 → 一定觸發 Postgres → 真正計入活動
+    - cron: '0 3 */2 * *'
   # 手動觸發（測試 / 急救用）
   workflow_dispatch:
 
@@ -20,9 +21,11 @@ jobs:
           - name: 'speech-training'
             ref: 'ybxfsmrawdcisylwjger'
             secret_name: 'SUPABASE_KEY_SPEECH'
+            ping_table: 'profiles'
           - name: 'smes-inventory'
             ref: 'xcnmmaayrtiklntvhdhc'
             secret_name: 'SUPABASE_KEY_INVENTORY'
+            ping_table: 'profiles'
     steps:
       - name: Ping ${{ matrix.project.name }}
         env:
@@ -35,13 +38,14 @@ jobs:
             exit 1
           fi
 
-          # 用 /auth/v1/health（GoTrue health endpoint）：
-          #   - 加 apikey header 才會回 200（不加會 401）
-          #   - 不需要知道專案 schema，比打 /rest/v1/<table> 通用
-          #   - 任何 HTTP 請求都計入 Supabase 活動，不會被自動暫停
-          URL="https://${{ matrix.project.ref }}.supabase.co/auth/v1/health"
+          # 打 PostgREST 表查詢（select=id&limit=1）：
+          #   - 一定會觸發實際 Postgres SQL，計入「活動」
+          #   - RLS 擋了也沒關係，回 200 + 空陣列仍算活動
+          #   - /auth/v1/health 不算（實測 200 OK 但 3 天還是被暫停）
+          URL="https://${{ matrix.project.ref }}.supabase.co/rest/v1/${{ matrix.project.ping_table }}?select=id&limit=1"
           STATUS=$(curl -sS -o /tmp/body.txt -w "%{http_code}" --max-time 30 \
             -H "apikey: $KEY" \
+            -H "Authorization: Bearer $KEY" \
             "$URL" || echo "000")
 
           echo "📡 ${{ matrix.project.name }} (${{ matrix.project.ref }}) → HTTP $STATUS"
