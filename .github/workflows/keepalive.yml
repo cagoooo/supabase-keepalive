@@ -9,7 +9,7 @@ on:
     # 每天 UTC 03:00 + UTC 15:00（台灣 11:00 + 23:00）
     # 2026-05-22 改良：原本每 2 天一次（cron '0 3 */2 * *'），但 speech-training
     # 仍在 48hr 內被 Supabase 暫停（DNS 不解析）。推測免費版規則變嚴，
-    # 改成每天兩次提高活動密度，並在失敗時自動開 issue 通知。
+    # 改成每天兩次提高活動密度，並在失敗時自動開 issue + 推 LINE 給 admin。
     - cron: '0 3,15 * * *'
   # 手動觸發（測試 / 急救用）
   workflow_dispatch:
@@ -62,6 +62,38 @@ jobs:
           fi
 
           echo "✅ ${{ matrix.project.name }} 已成功 ping，活動已記錄"
+
+      - name: Send LINE alert on failure
+        if: failure()
+        env:
+          ALERT_URL: ${{ secrets.KEEPALIVE_ALERT_URL }}
+          ALERT_TOKEN: ${{ secrets.KEEPALIVE_ALERT_TOKEN }}
+          PROJECT_NAME: ${{ matrix.project.name }}
+          PROJECT_REF: ${{ matrix.project.ref }}
+        run: |
+          if [ -z "$ALERT_URL" ] || [ -z "$ALERT_TOKEN" ]; then
+            echo "ℹ️ 未設定 KEEPALIVE_ALERT_URL / KEEPALIVE_ALERT_TOKEN，跳過 LINE 通知"
+            exit 0
+          fi
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          PAYLOAD=$(jq -n \
+            --arg project "$PROJECT_NAME" \
+            --arg ref "$PROJECT_REF" \
+            --arg runUrl "$RUN_URL" \
+            --arg source "github-actions" \
+            '{project: $project, ref: $ref, runUrl: $runUrl, source: $source}')
+          echo "📲 推送 LINE 告警..."
+          STATUS=$(curl -sS -o /tmp/line-resp.txt -w "%{http_code}" --max-time 20 \
+            -X POST "$ALERT_URL" \
+            -H "Authorization: Bearer $ALERT_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" || echo "000")
+          echo "LINE 通知回應 HTTP $STATUS"
+          head -c 500 /tmp/line-resp.txt 2>/dev/null || true
+          # 通知失敗不要遮蔽原本的 ping 失敗，所以這裡只警告不 exit
+          if [ "$STATUS" != "200" ]; then
+            echo "⚠️ LINE 通知失敗（但 issue 仍會建立）"
+          fi
 
       - name: Open issue on failure
         if: failure()
@@ -150,5 +182,5 @@ jobs:
           if [ "${{ needs.ping.result }}" = "success" ]; then
             echo "🎉 所有 Supabase 專案 keepalive 成功"
           else
-            echo "⚠️ 部分 Supabase 專案 keepalive 失敗，請檢查 ping job log（已自動開 issue）"
+            echo "⚠️ 部分 Supabase 專案 keepalive 失敗，請檢查 ping job log（已自動開 issue + 推 LINE）"
           fi
