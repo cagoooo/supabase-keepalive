@@ -1,5 +1,7 @@
 # Supabase Free Tier Keepalive
 
+> 🗂️ **一次性專案**：Supabase 保活排程腳本，非對外應用，內容不再變動，因此不做版本管理。
+
 **避免 Supabase 免費版專案 7 天沒活動自動暫停。**
 
 GitHub Actions cron 每 5 天打一次 Supabase REST API，讓專案保持 ACTIVE 狀態。完全免費、雲端跑、不需開機。
