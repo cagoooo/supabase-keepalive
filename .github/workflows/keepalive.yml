@@ -172,6 +172,21 @@ jobs:
             });
             console.log(`已開 issue #${created.number}：${created.html_url}`);
 
+  # 2026-10-30 新增：GitHub 會在 repo 60 天沒有 commit 時自動停用排程，
+  # 排程自己跑不算活動。每次執行都呼叫「重新啟用」API，讓 60 天計時歸零，
+  # 不必再推假 commit。跟 ping 分開跑，ping 失敗也照樣續命。
+  stay-enabled:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Re-enable this workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -X PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/keepalive.yml/enable"
+          echo "✅ 已重新啟用排程，60 天停用計時歸零"
+
   summary:
     runs-on: ubuntu-latest
     needs: ping
