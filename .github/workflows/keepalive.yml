@@ -32,6 +32,11 @@ jobs:
             ref: 'xcnmmaayrtiklntvhdhc'
             secret_name: 'SUPABASE_KEY_INVENTORY'
             ping_table: 'profiles'
+          # 2026-11-03 救回：Email 學習遊樂園（cagoooo/email）的後端「認識石門信箱帳號密碼」
+          - name: 'email-learning'
+            ref: 'lwohskolhlcxhbcamhnq'
+            secret_name: 'SUPABASE_KEY_EMAIL'
+            ping_table: 'user_profiles_20260310'
     steps:
       - name: Ping ${{ matrix.project.name }}
         env:
