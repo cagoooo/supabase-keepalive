@@ -22,10 +22,12 @@ jobs:
       fail-fast: false
       matrix:
         project:
-          - name: 'speech-training'
-            ref: 'ybxfsmrawdcisylwjger'
-            secret_name: 'SUPABASE_KEY_SPEECH'
-            ping_table: 'profiles'
+          # speech-training 已於 2026-11-03 手動暫停，讓出免費版名額給「認識石門信箱帳號密碼」
+          # 要恢復時：先在 Supabase 暫停另一個專案，restore 後把下面這段加回來
+          # - name: 'speech-training'
+          #   ref: 'ybxfsmrawdcisylwjger'
+          #   secret_name: 'SUPABASE_KEY_SPEECH'
+          #   ping_table: 'profiles'
           - name: 'smes-inventory'
             ref: 'xcnmmaayrtiklntvhdhc'
             secret_name: 'SUPABASE_KEY_INVENTORY'
